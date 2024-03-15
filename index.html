@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aline Invasion</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+      @keyframes move-player {
+        0% {
+          transform: rotate(-44deg);
+        }
+        50% {
+          transform: rotate(-42deg);
+        }
+        100% {
+          transform: rotate(-44deg);
+        }
+      }
+      @keyframes move-enemy {
+        0% {
+          transform: rotate(-10deg);
+        }
+        50% {
+          transform: rotate(25deg);
+        }
+        100% {
+          transform: rotate(-10deg);
+        }
+      }
+      @keyframes move-shot {
+        0% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(180deg);
+        }
+        100% {
+          transform: rotate(0deg);
+        }
+      }
+      body {
+        background-color: black;
+        color: rgb(60, 255, 0);
+        font: bold;
+        font-family: monospace;
+        font-size: x-large;
+        overflow: hidden;
+      }
+
+      .player {
+        position: absolute;
+        font-size: 50px;
+        animation: move-player 0.5s infinite;
+      }
+      .enemy {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 50px;
+        width: 50px;
+        height: 50px;
+        animation: move-enemy 1.5s infinite;
+      }
+      .shot {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 30px;
+        width: 30px;
+        height: 30px;
+      }
+      .button {
+        border: 3px solid rgb(60, 255, 0);
+        background-color: transparent;
+        color: rgb(60, 255, 0);
+        padding: 5px 10px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 35px;
+        font-family: monospace;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .button:hover {
+        background-color: rgb(60, 255, 0);
+        color: black;
+      }
+      .info {
+        display: flex;
+      }
+      .info .title {
+        width: 90px;
+      }
+      .live {
+        font-size: 18px;
+        margin-right: 4px;
+      }
+      .game-over {
+        font-size: 80px;
+        position: absolute;
+        top: calc(50% - 90px);
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .game-title {
+        font-size: 50px;
+        text-transform: uppercase;
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+      @media screen and (max-width: 600px) {
+        .game-title {
+          font-size: 30px;
+        }
+        .button {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      x-data="game()"
+      @keydown.arrow-right.window="player.style.left = parseInt(player.style.left || '0') + 5 + 'px'"
+      @keydown.arrow-left.window="player.style.left = parseInt(player.style.left || '0') - 5 + 'px'"
+      @keydown.space.window="shoot"
+      @resize.window="canvasWidth = window.innerWidth; canvasHeight = window.innerHeight"
+    >
+      <div class="game-title" x-show="!playing">Alien Invasion</div>
+      <div class="info">
+        <div class="title" x-text="`Time:`"></div>
+        <div x-text="`${time} s`"></div>
+      </div>
+      <div class="info">
+        <div class="title" x-text="`Score:`"></div>
+        <div x-text="`${score}`"></div>
+      </div>
+      <div class="info">
+        <div class="title" x-text="`Lives:`"></div>
+        <template x-for="live in lives">
+          <div class="live">❤️</div>
+        </template>
+      </div>
+
+      <div x-show="!playing">
+        <div class="game-over" x-show="lives === 0">🪦</div>
+        <button @click="startGame" class="button">START GAME</button>
+      </div>
+      <div x-show="playing">
+        <div
+          id="player"
+          x-ref="player"
+          class="player"
+          :style="`position: absolute; top: ${canvasHeight - 100}px; left: ${canvasWidth / 2 - 25}px;`"
+        >
+          🚀
+        </div>
+        <template x-for="enemy in enemies" :key="enemy.id">
+          <div x-ref="enemy" class="enemy" :style="`top: ${enemy.y}px; left: ${enemy.x}px; `">
+            <span x-show="enemy.state === 1">👽</span>
+            <span x-show="enemy.state === 0">💥</span>
+          </div>
+        </template>
+        <template x-for="shot in shots" :key="shot.id">
+          <div x-ref="shot" class="shot" :style="`top: ${shot.y}px; left: ${shot.x}px;`">☢️</div>
+        </template>
+      </div>
+    </div>
+    <script>
+      function game() {
+        return {
+          playing: false,
+          canvasWidth: window.innerWidth,
+          canvasHeight: window.innerHeight,
+          score: 0,
+          time: 0,
+          lives: 3,
+          enemies: [],
+          shots: [],
+          startGame() {
+            this.playing = true;
+            this.score = 0;
+            this.time = 0;
+            this.lives = 3;
+            this.enemies = [];
+
+            this.spawnEnemy();
+            this.spawnEnemy();
+            this.spawnEnemy();
+            this.spawnEnemy();
+
+            setInterval(() => {
+              if (this.playing) {
+                this.time++;
+              }
+            }, 1000);
+
+            setInterval(() => {
+              this.enemies.forEach((enemy) => {
+                if (this.playing) {
+                  enemy.y += 4;
+                  if (enemy.y > this.canvasHeight - 60) {
+                    this.lives--;
+                    if (this.lives === 0) {
+                      this.playing = false;
+                      this.lives = 0;
+                    }
+                    enemy.y = 0;
+                    enemy.x = Math.random() * (this.canvasWidth - 50);
+                  }
+                }
+              });
+            }, 100);
+
+            setInterval(() => {
+              if (this.playing) {
+                this.shots.forEach((shot) => {
+                  shot.y -= 40;
+                  this.enemies.forEach((enemy) => {
+                    if (enemy.state === 1 && Math.abs(shot.x - enemy.x) < 50 && Math.abs(shot.y - enemy.y) < 50) {
+                      this.score++;
+                      enemy.state = 0;
+                      setTimeout(() => {
+                        enemy.y = 0;
+                        enemy.x = Math.random() * (this.canvasWidth - 50);
+                        enemy.state = 1;
+                      }, 600);
+                    }
+                  });
+                });
+              }
+            }, 60);
+          },
+          shoot() {
+            this.shots.push({
+              id: Math.random(),
+              x: this.$refs.player.offsetLeft + 20,
+              y: this.$refs.player.offsetTop - 20,
+            });
+          },
+          spawnEnemy() {
+            this.enemies.push({
+              id: Math.random(),
+              x: Math.random() * (this.canvasWidth - 50),
+              y: 0,
+              state: 1,
+            });
+          },
+        };
+      }
+    </script>
+  </body>
+</html>
